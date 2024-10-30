@@ -23,6 +23,12 @@ class _MyAppState extends State<MyApp> {
     DesktopScreenState.instance.isActive.addListener(() {
       log(DesktopScreenState.instance.isActive.value.toString());
     });
+    DesktopScreenState.instance.isMouseActive.addListener(() {
+      log(DesktopScreenState.instance.isMouseActive.value.toString());
+    });
+    DesktopScreenState.instance.isKeyboardActive.addListener(() {
+      log(DesktopScreenState.instance.isKeyboardActive.value.toString());
+    });
     super.initState();
   }
 
@@ -35,11 +41,27 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Plugin example app'),
         ),
-        body: ValueListenableBuilder<ScreenState>(
-          valueListenable: _screenstatePlugin.isActive,
-          builder: (context, value, child) => Center(
-            child: Text('Screen state on: $value'),
-          ),
+        body: Column(
+          children: [
+            ValueListenableBuilder<ScreenState>(
+              valueListenable: _screenstatePlugin.isActive,
+              builder: (context, value, child) => Center(
+                child: Text('Screen state on: $value'),
+              ),
+            ),
+            ValueListenableBuilder<KeyboardState>(
+              valueListenable: _screenstatePlugin.isKeyboardActive,
+              builder: (context, value, child) => Center(
+                child: Text('Keyboard state on: $value'),
+              ),
+            ),
+            ValueListenableBuilder<MouseState>(
+              valueListenable: _screenstatePlugin.isMouseActive,
+              builder: (context, value, child) => Center(
+                child: Text('Mouse state on: $value'),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -11,9 +11,11 @@ platforms:
   linux:
   windows:
 dependencies:
+  ffi: ^2.1.3
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
+  win32: ^5.7.2
 
 dev_dependencies:
   flutter_test:

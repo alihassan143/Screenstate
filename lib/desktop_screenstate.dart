@@ -1,14 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:win32/win32.dart';
 
 enum ScreenState { sleep, awaked, locked, unlocked }
 
+enum MouseState { active, inActive }
+
+enum KeyboardState { active, inActive }
+
 class DesktopScreenState {
   static const MethodChannel _channel = MethodChannel('screenstate');
+  static bool _isMonitoring = false;
+  static Pointer<NativeFunction<HOOKPROC>> _keyboardHook = nullptr;
+  static Pointer<NativeFunction<HOOKPROC>> _mouseHook = nullptr;
 
   static DesktopScreenState? _instance;
 
@@ -56,6 +65,43 @@ class DesktopScreenState {
     });
   }
 
+  static void startMonitoring() {
+    if (_isMonitoring) return;
+    _isMonitoring = true;
+
+    _keyboardHook = SetWindowsHookEx(
+      WINDOWS_HOOK_ID.WH_KEYBOARD_LL,
+      Pointer.fromFunction<HOOKPROC>(_keyboardProc, 0),
+      GetModuleHandle(nullptr),
+      0,
+    ) as Pointer<NativeFunction<HOOKPROC>>;
+
+    _mouseHook = SetWindowsHookEx(
+      WINDOWS_HOOK_ID.WH_MOUSE_LL,
+      Pointer.fromFunction<HOOKPROC>(_mouseProc, 0),
+      GetModuleHandle(nullptr),
+      0,
+    ) as Pointer<NativeFunction<HOOKPROC>>;
+  }
+
+  static void stopMonitoring() {
+    if (!_isMonitoring) return;
+    _isMonitoring = false;
+
+    UnhookWindowsHookEx(_keyboardHook as int);
+    UnhookWindowsHookEx(_mouseHook as int);
+  }
+
+  static int _keyboardProc(int nCode, int wParam, int lParam) {
+    if (nCode >= 0 && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {}
+    return CallNextHookEx(_keyboardHook as int, nCode, wParam, lParam);
+  }
+
+  static int _mouseProc(int nCode, int wParam, int lParam) {
+    if (nCode >= 0 && (wParam == WM_MOUSEMOVE || wParam == WM_LBUTTONDOWN)) {}
+    return CallNextHookEx(_mouseHook as int, nCode, wParam, lParam);
+  }
+
   DesktopScreenState._();
 
   static final ValueNotifier<ScreenState> _activeState =
@@ -65,10 +111,30 @@ class DesktopScreenState {
     return _activeState;
   }
 
+  static final ValueNotifier<MouseState> _mouseState =
+      ValueNotifier(MouseState.active);
+
+  ValueListenable<MouseState> get isMouseActive {
+    return _mouseState;
+  }
+
+  static final ValueNotifier<KeyboardState> _keyBoardState =
+      ValueNotifier(KeyboardState.active);
+
+  ValueListenable<KeyboardState> get isKeyboardActive {
+    return _keyBoardState;
+  }
+
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case "onScreenStateChange":
         _onApplicationFocusChange(call.arguments as String);
+        break;
+      case "mouseState":
+        _onMouseState(call.arguments as String);
+        break;
+      case "keyboardState":
+        _onkeyboardState(call.arguments as String);
         break;
       default:
         break;
@@ -80,5 +146,15 @@ class DesktopScreenState {
       (e) => e.toString().split('.').last == active,
       orElse: () => ScreenState.awaked,
     );
+  }
+
+  void _onMouseState(String active) {
+    _mouseState.value =
+        active == "active" ? MouseState.active : MouseState.inActive;
+  }
+
+  void _onkeyboardState(String active) {
+    _keyBoardState.value =
+        active == "active" ? KeyboardState.active : KeyboardState.inActive;
   }
 }
